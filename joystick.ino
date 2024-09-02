@@ -30,13 +30,13 @@ SPIFFS            2.0.0
 #define STATUS_Y 26      // Y position for the connection status text
 
 // Calibration values for joystick
-const int16_t x_offset = 1936 / 2;
-const int16_t x_low = 800 - x_offset;
-const int16_t x_high = 3731 - x_offset;
+const int16_t x_offset = 1836 / 2;
+const int16_t x_low = 700 - x_offset;
+const int16_t x_high = 3131 - x_offset;
 
-const int16_t y_offset = 1444 / 2;
-const int16_t y_low = 520 - y_offset;
-const int16_t y_high = 3338 - y_offset;
+const int16_t y_offset = 884 / 2;
+const int16_t y_low = 140 - y_offset;
+const int16_t y_high = 2768 - y_offset;
 
 // Button configuration
 uint8_t button_pins[BUTTONS] = {32, 33, 25, 26, 27, 14}; // Define button pins for ESP32
