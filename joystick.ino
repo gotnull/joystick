@@ -1,8 +1,22 @@
+/*
+ * Build & Upload
+ */
+
 // Compile: arduino-cli compile --fqbn esp32:esp32:ttgo-t1 .
 // Upload: arduino-cli upload -p /dev/cu.usbserial-0206671E --fqbn esp32:esp32:ttgo-t1
 // Monitor: arduino-cli monitor -p /dev/cu.usbserial-0206671E --config 115200
 
-// Testers:
+/*
+ * Boards
+ */
+
+// esp32:esp32:lilygo_t_display_s3
+// esp32:esp32:ttgo-t1
+
+/*
+ * Testing
+ */
+
 // https://hardwaretester.com/gamepad
 // https://www.onlinemictest.com/controller-tester/
 
@@ -10,23 +24,27 @@
 #include <TFT_eSPI.h>
 
 /*
-ESP32-BLE-Gamepad 0.5.4
-NimBLE-Arduino    1.4.2
-TFT_eSPI          2.5.43
-SPI               2.0.0
-FS                2.0.0
-SPIFFS            2.0.0
-*/
+ * Libraries
+ */
+
+// ESP32-BLE-Gamepad 0.5.4
+// NimBLE-Arduino    1.4.2
+// TFT_eSPI          2.5.43
+// SPI               2.0.0
+// FS                2.0.0
+// SPIFFS            2.0.0
 
 // Analog pins for joystick input
-#define PIN_X 25 // ESP32 ADC pin for joystick X-axis
-#define PIN_Y 26 // ESP32 ADC pin for joystick Y-axis
+#define PIN_X 18 // ESP32 ADC pin for joystick X-axis
+#define PIN_Y 17 // ESP32 ADC pin for joystick Y-axis
 
 // Configuration constants
 #define BUTTONS 6        // Number of physical buttons
 #define CIRCLE_RADIUS 30 // Radius of the circle representing joystick range
-#define CENTER_X 120     // Center X position on the TFT
-#define CENTER_Y 67      // Center Y position on the TFT
+// #define CENTER_X 120  // Center X position on the TFT
+// #define CENTER_Y 67   // Center Y position on the TFT
+#define CENTER_X 320 / 2 // Center X position on the TFT
+#define CENTER_Y 170 / 2 // Center Y position on the TFT
 #define STATUS_Y 26      // Y position for the connection status text
 
 // Calibration values for joystick
@@ -64,10 +82,10 @@ void setup()
   pinMode(PIN_X, INPUT);
   pinMode(PIN_Y, INPUT);
 
-  for (int i = 0; i < BUTTONS; i++)
-  {
-    pinMode(button_pins[i], INPUT_PULLUP);
-  }
+  // for (int i = 0; i < BUTTONS; i++)
+  // {
+  //   pinMode(button_pins[i], INPUT_PULLUP);
+  // }
 
   // Configure BLE Gamepad
   bleGamepadConfig.setAutoReport(false);                        // Set to manual report mode
@@ -77,7 +95,8 @@ void setup()
   bleGamepadConfig.setVid(0x4511);                              // Example VID
   bleGamepadConfig.setPid(0x9023);                              // Example PID
   bleGamepad.begin(&bleGamepadConfig);                          // Start BLE Gamepad
-  delay(1000);                                                  // Wait for BLE initialization
+
+  delay(2000); // Wait for BLE initialization
 }
 
 void loop()
@@ -91,6 +110,10 @@ void loop()
     // Calibrate joystick values
     x_val = map(constrain(x_val - x_offset, x_low, x_high), x_low, x_high, -32767, 32767);
     y_val = map(constrain(y_val - y_offset, y_low, y_high), y_low, y_high, -32767, 32767);
+
+    // Invert joystick values for correct movement
+    x_val = -x_val;
+    y_val = -y_val;
 
     // Set the gamepad axes
     bleGamepad.setAxes(x_val, y_val);
