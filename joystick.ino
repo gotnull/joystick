@@ -1,3 +1,4 @@
+#include <EEPROM.h>
 #include <BleGamepad.h>
 #include <TFT_eSPI.h>
 
@@ -65,10 +66,42 @@ int16_t calibration_y_center = 0;
 unsigned long last_calibration_start_time = 0;
 unsigned long last_calibration_done_time = 0;
 
+// Define EEPROM addresses for calibration values
+#define EEPROM_X_OFFSET_ADDR 0
+#define EEPROM_X_LOW_ADDR (EEPROM_X_OFFSET_ADDR + sizeof(int16_t))
+#define EEPROM_X_HIGH_ADDR (EEPROM_X_LOW_ADDR + sizeof(int16_t))
+#define EEPROM_Y_OFFSET_ADDR (EEPROM_X_HIGH_ADDR + sizeof(int16_t))
+#define EEPROM_Y_LOW_ADDR (EEPROM_Y_OFFSET_ADDR + sizeof(int16_t))
+#define EEPROM_Y_HIGH_ADDR (EEPROM_Y_LOW_ADDR + sizeof(int16_t))
+
+void saveCalibrationValues()
+{
+  EEPROM.put(EEPROM_X_OFFSET_ADDR, x_offset);
+  EEPROM.put(EEPROM_X_LOW_ADDR, x_low);
+  EEPROM.put(EEPROM_X_HIGH_ADDR, x_high);
+  EEPROM.put(EEPROM_Y_OFFSET_ADDR, y_offset);
+  EEPROM.put(EEPROM_Y_LOW_ADDR, y_low);
+  EEPROM.put(EEPROM_Y_HIGH_ADDR, y_high);
+  EEPROM.commit();
+}
+
+void loadCalibrationValues()
+{
+  EEPROM.get(EEPROM_X_OFFSET_ADDR, x_offset);
+  EEPROM.get(EEPROM_X_LOW_ADDR, x_low);
+  EEPROM.get(EEPROM_X_HIGH_ADDR, x_high);
+  EEPROM.get(EEPROM_Y_OFFSET_ADDR, y_offset);
+  EEPROM.get(EEPROM_Y_LOW_ADDR, y_low);
+  EEPROM.get(EEPROM_Y_HIGH_ADDR, y_high);
+}
+
 void setup()
 {
   Serial.begin(115200);
   Serial.println("Starting BLE Gamepad...");
+
+  EEPROM.begin(512); // Initialize EEPROM
+  // loadCalibrationValues(); // Load saved calibration values
 
   tft.init();
   tft.setRotation(1);
@@ -161,7 +194,9 @@ void finalizeCalibration()
   y_low = (int16_t)constrain(y_low_32, -32768, 32767);
   y_high = (int16_t)constrain(y_high_32, -32768, 32767);
 
-  // Calibration is completed
+  // Save calibration values
+  saveCalibrationValues();
+
   calibrating = false;
 
   // Print the calibration values
