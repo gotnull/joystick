@@ -1,3 +1,8 @@
+// Testing: https://hcidesign.com/gamepad/
+// arduino-cli compile --fqbn esp32:esp32:lilygo_t_display_s3
+// arduino-cli upload -p /dev/cu.usbmodem13301 --fqbn esp32:esp32:lilygo_t_display_s3
+// arduino-cli monitor -p /dev/cu.usbmodem13301 --config 115200
+
 #include <EEPROM.h>
 #include <BleGamepad.h>
 #include <TFT_eSPI.h>
@@ -29,13 +34,26 @@
 #define STATUS_Y 26               // Y position for the connection status text
 
 // Calibration values for joystick
-int16_t x_offset = 2377;
-int16_t x_low = 700 - x_offset;
-int16_t x_high = 3131 - x_offset;
+// int16_t x_offset = 2377;
+// int16_t x_low = 700 - x_offset;
+// int16_t x_high = 3131 - x_offset;
+// int16_t y_offset = 2903;
+// int16_t y_low = 140 - y_offset;
+// int16_t y_high = 2768 - y_offset;
 
-int16_t y_offset = 2903;
-int16_t y_low = 140 - y_offset;
-int16_t y_high = 2768 - y_offset;
+int16_t x_offset = 0;
+int16_t x_low = 0;
+int16_t x_high = 0;
+int16_t y_offset = 0;
+int16_t y_low = 0;
+int16_t y_high = 0;
+
+// int16_t x_offset = 3229;
+// int16_t y_offset = 4287;
+// int16_t x_low = -1677;
+// int16_t x_high = 754;
+// int16_t y_low = -2763;
+// int16_t y_high = -135;
 
 // Calibration control buttons
 #define CALIBRATION_START_PIN 1 // Pin for starting calibration
@@ -102,8 +120,8 @@ void setup()
   Serial.begin(115200);
   Serial.println("Starting BLE Gamepad...");
 
-  EEPROM.begin(512); // Initialize EEPROM
-  // loadCalibrationValues(); // Load saved calibration values
+  EEPROM.begin(512);       // Initialize EEPROM
+  loadCalibrationValues(); // Load saved calibration values
 
   tft.init();
   tft.setRotation(1);
@@ -210,18 +228,30 @@ void printCalibration()
 {
   // Print the calibration values
   Serial.println("Calibration Values:");
-  Serial.print("x_offset: ");
-  Serial.println(x_offset);
-  Serial.print("y_offset: ");
-  Serial.println(y_offset);
-  Serial.print("x_low: ");
-  Serial.println(x_low);
-  Serial.print("x_high: ");
-  Serial.println(x_high);
-  Serial.print("y_low: ");
-  Serial.println(y_low);
-  Serial.print("y_high: ");
-  Serial.println(y_high);
+
+  Serial.print("int16_t x_offset = ");
+  Serial.print(x_offset);
+  Serial.println(";");
+
+  Serial.print("int16_t y_offset = ");
+  Serial.print(y_offset);
+  Serial.println(";");
+
+  Serial.print("int16_t x_low = ");
+  Serial.print(x_low);
+  Serial.println(";");
+
+  Serial.print("int16_t x_high = ");
+  Serial.print(x_high);
+  Serial.println(";");
+
+  Serial.print("int16_t y_low = ");
+  Serial.print(y_low);
+  Serial.println(";");
+
+  Serial.print("int16_t y_high = ");
+  Serial.print(y_high);
+  Serial.println(";");
 }
 
 void calibrateJoystick(int16_t x_val, int16_t y_val)
