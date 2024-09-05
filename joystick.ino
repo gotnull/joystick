@@ -14,12 +14,14 @@
 // SPIFFS            2.0.0
 
 // Analog pins for joystick input
-#define PIN_X 18 // ESP32 ADC pin for joystick X-axis
-#define PIN_Y 17 // ESP32 ADC pin for joystick Y-axis
+#define PIN_X 17 // ESP32 ADC pin for joystick X-axis
+#define PIN_Y 18 // ESP32 ADC pin for joystick Y-axis
 
-// Configuration constants
-#define TFT_WIDTH 320             // TFT width
-#define TFT_HEIGHT 170            // TFT height
+// TFT constants
+#define TFT_WIDTH 320  // TFT width
+#define TFT_HEIGHT 170 // TFT height
+
+// Joystick constants
 #define BUTTONS 6                 // Number of physical buttons
 #define CIRCLE_RADIUS 30          // Radius of the circle representing joystick range
 #define CENTER_X (TFT_WIDTH / 2)  // Center X position on the TFT
@@ -27,11 +29,11 @@
 #define STATUS_Y 26               // Y position for the connection status text
 
 // Calibration values for joystick
-int16_t x_offset = 1836 / 2;
+int16_t x_offset = 2377;
 int16_t x_low = 700 - x_offset;
 int16_t x_high = 3131 - x_offset;
 
-int16_t y_offset = 884 / 2;
+int16_t y_offset = 2903;
 int16_t y_low = 140 - y_offset;
 int16_t y_high = 2768 - y_offset;
 
@@ -127,6 +129,8 @@ void setup()
   bleGamepadConfig.setPid(0x9023);                              // Example PID
   bleGamepad.begin(&bleGamepadConfig);                          // Start BLE Gamepad
 
+  printCalibration();
+
   delay(2000); // Wait for BLE initialization
 }
 
@@ -136,8 +140,16 @@ void loop()
   int16_t y_val = analogRead(PIN_Y);
 
   // Constrain the x and y values
-  x_val = map(constrain(x_val - calibration_x_center, x_low, x_high), x_low, x_high, -32767, 32767);
-  y_val = map(constrain(y_val - calibration_y_center, y_low, y_high), y_low, y_high, -32767, 32767);
+  if (calibrating)
+  {
+    x_val = map(constrain(x_val - calibration_x_center, x_low, x_high), x_low, x_high, -32767, 32767);
+    y_val = map(constrain(y_val - calibration_y_center, y_low, y_high), y_low, y_high, -32767, 32767);
+  }
+  else
+  {
+    x_val = map(constrain(x_val - x_offset, x_low, x_high), x_low, x_high, -32767, 32767);
+    y_val = map(constrain(y_val - y_offset, y_low, y_high), y_low, y_high, -32767, 32767);
+  }
 
   // Invert the axes for the TFT display
   x_val = -x_val;
@@ -182,23 +194,20 @@ void finalizeCalibration()
   x_offset = calibration_x_center;
   y_offset = calibration_y_center;
 
-  // Use int32_t for the calculations to avoid overflow
-  int32_t x_low_32 = calibration_x_center - 32768;
-  int32_t x_high_32 = calibration_x_center + 32767;
-  int32_t y_low_32 = calibration_y_center - 32768;
-  int32_t y_high_32 = calibration_y_center + 32767;
-
-  // Convert back to int16_t if necessary (if staying within valid ranges)
-  x_low = (int16_t)constrain(x_low_32, -32768, 32767);
-  x_high = (int16_t)constrain(x_high_32, -32768, 32767);
-  y_low = (int16_t)constrain(y_low_32, -32768, 32767);
-  y_high = (int16_t)constrain(y_high_32, -32768, 32767);
+  // Print the calibration values
+  printCalibration();
 
   // Save calibration values
   saveCalibrationValues();
 
   calibrating = false;
 
+  // Print calibration completion message
+  Serial.println("Calibration completed.");
+}
+
+void printCalibration()
+{
   // Print the calibration values
   Serial.println("Calibration Values:");
   Serial.print("x_offset: ");
@@ -213,9 +222,6 @@ void finalizeCalibration()
   Serial.println(y_low);
   Serial.print("y_high: ");
   Serial.println(y_high);
-
-  // Print calibration completion message
-  Serial.println("Calibration completed.");
 }
 
 void calibrateJoystick(int16_t x_val, int16_t y_val)
@@ -277,7 +283,7 @@ void drawJoystickRepresentation(int16_t x_val, int16_t y_val)
 
   // Draw the center dot
   const int16_t INNER_CIRCLE_RADIUS = 8;                              // Radius of the inner circle
-  tft.drawCircle(CENTER_X, CENTER_Y, INNER_CIRCLE_RADIUS, TFT_GREEN); // Center dot
+  tft.drawCircle(CENTER_X, CENTER_Y, INNER_CIRCLE_RADIUS, TFT_GREEN); // Draw the inner circle
 
   // Calculate the x and y position of the red circle
   int16_t x_pos = map(constrain(x_val, -32767, 32767), -32767, 32767, CENTER_X - CIRCLE_RADIUS, CENTER_X + CIRCLE_RADIUS);
