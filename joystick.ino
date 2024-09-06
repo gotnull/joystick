@@ -34,12 +34,12 @@
 #define STATUS_Y 26               // Y position for the connection status text
 
 // Calibration values for joystick
-// int16_t x_offset = 2377;
-// int16_t x_low = 700 - x_offset;
-// int16_t x_high = 3131 - x_offset;
-// int16_t y_offset = 2903;
-// int16_t y_low = 140 - y_offset;
-// int16_t y_high = 2768 - y_offset;
+// int16_t x_offset = 3229;
+// int16_t y_offset = 4287;
+// int16_t x_low = -1677;
+// int16_t x_high = 754;
+// int16_t y_low = -2763;
+// int16_t y_high = -135;
 
 int16_t x_offset = 0;
 int16_t x_low = 0;
@@ -47,13 +47,6 @@ int16_t x_high = 0;
 int16_t y_offset = 0;
 int16_t y_low = 0;
 int16_t y_high = 0;
-
-// int16_t x_offset = 3229;
-// int16_t y_offset = 4287;
-// int16_t x_low = -1677;
-// int16_t x_high = 754;
-// int16_t y_low = -2763;
-// int16_t y_high = -135;
 
 // Calibration control buttons
 #define CALIBRATION_START_PIN 1 // Pin for starting calibration
@@ -120,7 +113,8 @@ void setup()
   Serial.begin(115200);
   Serial.println("Starting BLE Gamepad...");
 
-  EEPROM.begin(512);       // Initialize EEPROM
+  EEPROM.begin(512); // Initialize EEPROM
+
   loadCalibrationValues(); // Load saved calibration values
 
   tft.init();
@@ -150,6 +144,12 @@ void setup()
   printCalibration();
 
   delay(2000); // Wait for BLE initialization
+
+  if (bleGamepad.connected())
+  {
+    tft.fillScreen(TFT_BLACK);
+    tft.drawString("Waiting...", tft.width() / 2, STATUS_Y, 4);
+  }
 }
 
 void loop()
