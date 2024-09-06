@@ -18,6 +18,21 @@
 // FS                2.0.0
 // SPIFFS            2.0.0
 
+// Calibration values for joystick
+// int16_t x_offset = 0;
+// int16_t x_low = 0;
+// int16_t x_high = 0;
+// int16_t y_offset = 0;
+// int16_t y_low = 0;
+// int16_t y_high = 0;
+
+int16_t x_offset = 3229;
+int16_t y_offset = 4287;
+int16_t x_low = -1677;
+int16_t x_high = 754;
+int16_t y_low = -2763;
+int16_t y_high = -135;
+
 // Analog pins for joystick input
 #define PIN_X 17 // ESP32 ADC pin for joystick X-axis
 #define PIN_Y 18 // ESP32 ADC pin for joystick Y-axis
@@ -33,21 +48,6 @@
 #define CENTER_Y (TFT_HEIGHT / 2) // Center Y position on the TFT
 #define STATUS_Y 26               // Y position for the connection status text
 
-// Calibration values for joystick
-// int16_t x_offset = 3229;
-// int16_t y_offset = 4287;
-// int16_t x_low = -1677;
-// int16_t x_high = 754;
-// int16_t y_low = -2763;
-// int16_t y_high = -135;
-
-int16_t x_offset = 0;
-int16_t x_low = 0;
-int16_t x_high = 0;
-int16_t y_offset = 0;
-int16_t y_low = 0;
-int16_t y_high = 0;
-
 // Calibration control buttons
 #define CALIBRATION_START_PIN 1 // Pin for starting calibration
 #define CALIBRATION_DONE_PIN 12 // Pin for stopping calibration
@@ -57,17 +57,18 @@ int16_t y_high = 0;
 #define BUTTON_RIGHT_PIN 11     // Pin for moving right
 
 // Button configuration
-uint8_t button_pins[BUTTONS] = {CALIBRATION_START_PIN, CALIBRATION_DONE_PIN, BUTTON_UP_PIN, BUTTON_DOWN_PIN, BUTTON_LEFT_PIN, BUTTON_RIGHT_PIN}; // Define button pins for ESP32
-uint8_t button_mapping[BUTTONS] = {1, 2, 3, 4, 5, 6};                                                                                            // Mapping buttons 1 to 6
+uint8_t button_pins[BUTTONS] = {CALIBRATION_START_PIN, CALIBRATION_DONE_PIN, BUTTON_UP_PIN, BUTTON_DOWN_PIN, BUTTON_LEFT_PIN, BUTTON_RIGHT_PIN};
+uint8_t button_mapping[BUTTONS] = {1, 2, 3, 4, 5, 6};
 
 // Debounce delay in milliseconds
 #define DEBOUNCE_DELAY 300
 
 // TFT Setup
 TFT_eSPI tft = TFT_eSPI();
+TFT_eSprite sprite = TFT_eSprite(&tft); // Add sprite for smooth rendering
 
 // Initialize BleGamepad
-BleGamepad bleGamepad("Gotnull's Gamepad", "gotnull", 100); // Name, Manufacturer, Battery Level
+BleGamepad bleGamepad("Gotnull's Gamepad", "gotnull", 100);
 BleGamepadConfiguration bleGamepadConfig;
 
 // Calibration state
@@ -79,7 +80,7 @@ int16_t calibration_y_center = 0;
 unsigned long last_calibration_start_time = 0;
 unsigned long last_calibration_done_time = 0;
 
-// Define EEPROM addresses for calibration values
+// EEPROM addresses for calibration values
 #define EEPROM_X_OFFSET_ADDR 0
 #define EEPROM_X_LOW_ADDR (EEPROM_X_OFFSET_ADDR + sizeof(int16_t))
 #define EEPROM_X_HIGH_ADDR (EEPROM_X_LOW_ADDR + sizeof(int16_t))
@@ -113,17 +114,19 @@ void setup()
   Serial.begin(115200);
   Serial.println("Starting BLE Gamepad...");
 
-  EEPROM.begin(512); // Initialize EEPROM
-
-  loadCalibrationValues(); // Load saved calibration values
+  EEPROM.begin(512);
+  loadCalibrationValues();
 
   tft.init();
   tft.setRotation(1);
-  tft.fillScreen(TFT_BLACK);
-  tft.setTextDatum(MC_DATUM);
-  tft.drawString("Waiting...", tft.width() / 2, STATUS_Y, 4);
+  sprite.createSprite(TFT_WIDTH, TFT_HEIGHT); // Create sprite to cover the whole screen
 
-  // Initialize joystick and button pins
+  sprite.fillSprite(TFT_BLACK);
+  sprite.setTextDatum(MC_DATUM);             // Middle Center datum for text
+  sprite.setTextColor(TFT_WHITE, TFT_BLACK); // Text color white, background black
+  sprite.drawString("Waiting...", tft.width() / 2, STATUS_Y, 4);
+  sprite.pushSprite(0, 0); // Push sprite to show text
+
   pinMode(PIN_X, INPUT);
   pinMode(PIN_Y, INPUT);
 
@@ -132,24 +135,17 @@ void setup()
     pinMode(button_pins[i], INPUT_PULLUP);
   }
 
-  // Configure BLE Gamepad
-  bleGamepadConfig.setAutoReport(false);                        // Set to manual report mode
-  bleGamepadConfig.setControllerType(CONTROLLER_TYPE_JOYSTICK); // Controller type
-  bleGamepadConfig.setButtonCount(BUTTONS);                     // Set number of buttons
-  bleGamepadConfig.setHatSwitchCount(0);                        // No hat switches
-  bleGamepadConfig.setVid(0x4511);                              // Example VID
-  bleGamepadConfig.setPid(0x9023);                              // Example PID
-  bleGamepad.begin(&bleGamepadConfig);                          // Start BLE Gamepad
+  bleGamepadConfig.setAutoReport(false);
+  bleGamepadConfig.setControllerType(CONTROLLER_TYPE_JOYSTICK);
+  bleGamepadConfig.setButtonCount(BUTTONS);
+  bleGamepadConfig.setHatSwitchCount(0);
+  bleGamepadConfig.setVid(0x4511);
+  bleGamepadConfig.setPid(0x9023);
+  bleGamepad.begin(&bleGamepadConfig);
 
   printCalibration();
 
-  delay(2000); // Wait for BLE initialization
-
-  if (bleGamepad.connected())
-  {
-    tft.fillScreen(TFT_BLACK);
-    tft.drawString("Waiting...", tft.width() / 2, STATUS_Y, 4);
-  }
+  delay(2000);
 }
 
 void loop()
@@ -157,7 +153,18 @@ void loop()
   int16_t x_val = analogRead(PIN_X);
   int16_t y_val = analogRead(PIN_Y);
 
-  // Constrain the x and y values
+  // Check BLE connection status
+  sprite.fillSprite(TFT_BLACK); // Clear sprite
+  if (bleGamepad.isConnected())
+  {
+    sprite.drawString("Connected", CENTER_X, STATUS_Y, 2); // Draw connected status
+  }
+  else
+  {
+    sprite.drawString("Not Connected", CENTER_X, STATUS_Y, 2); // Draw not connected status
+  }
+
+  // Calibration logic
   if (calibrating)
   {
     x_val = map(constrain(x_val - calibration_x_center, x_low, x_high), x_low, x_high, -32767, 32767);
@@ -169,33 +176,33 @@ void loop()
     y_val = map(constrain(y_val - y_offset, y_low, y_high), y_low, y_high, -32767, 32767);
   }
 
-  // Invert the axes for the TFT display
   x_val = -x_val;
   y_val = -y_val;
 
   unsigned long current_time = millis();
 
-  // CALIBRATION_START_PIN
   if (digitalRead(button_pins[0]) == LOW && (current_time - last_calibration_start_time) > DEBOUNCE_DELAY)
   {
     startCalibration();
     last_calibration_start_time = current_time;
   }
 
-  // Begin calibration
   if (calibrating)
   {
     calibrateJoystick(x_val, y_val);
   }
-  else // Operate joysticks
+  else
   {
     operateJoystick(x_val, y_val);
   }
 
-  updateButtonStates();    // Update the button states
-  bleGamepad.sendReport(); // Send BLE gamepad report
+  updateButtonStates();
+  bleGamepad.sendReport();
 
-  delay(10); // Delay for stability
+  drawJoystickRepresentation(x_val, y_val); // Draw joystick after text
+
+  sprite.pushSprite(0, 0); // Push sprite after drawing everything for smooth rendering
+  delay(10);
 }
 
 void startCalibration()
@@ -208,25 +215,18 @@ void startCalibration()
 
 void finalizeCalibration()
 {
-  // Set the offsets to the current center values
   x_offset = calibration_x_center;
   y_offset = calibration_y_center;
 
-  // Print the calibration values
   printCalibration();
-
-  // Save calibration values
   saveCalibrationValues();
-
   calibrating = false;
 
-  // Print calibration completion message
   Serial.println("Calibration completed.");
 }
 
 void printCalibration()
 {
-  // Print the calibration values
   Serial.println("Calibration Values:");
 
   Serial.print("int16_t x_offset = ");
@@ -257,34 +257,28 @@ void printCalibration()
 void calibrateJoystick(int16_t x_val, int16_t y_val)
 {
   bleGamepad.setAxes(x_val, y_val);
-
   drawJoystickRepresentation(x_val, y_val);
 
-  // BUTTON_UP_PIN
   if (digitalRead(button_pins[2]) == LOW)
   {
     calibration_y_center -= 10;
   }
 
-  // BUTTON_DOWN_PIN
   if (digitalRead(button_pins[3]) == LOW)
   {
     calibration_y_center += 10;
   }
 
-  // BUTTON_LEFT_PIN
   if (digitalRead(button_pins[4]) == LOW)
   {
     calibration_x_center -= 10;
   }
 
-  // BUTTON_RIGHT_PIN
   if (digitalRead(button_pins[5]) == LOW)
   {
     calibration_x_center += 10;
   }
 
-  // CALIBRATION_DONE_PIN
   if (digitalRead(button_pins[1]) == LOW && (millis() - last_calibration_done_time) > DEBOUNCE_DELAY)
   {
     finalizeCalibration();
@@ -295,27 +289,18 @@ void calibrateJoystick(int16_t x_val, int16_t y_val)
 void operateJoystick(int16_t x_val, int16_t y_val)
 {
   bleGamepad.setAxes(x_val, y_val);
-
   drawJoystickRepresentation(x_val, y_val);
 }
 
 void drawJoystickRepresentation(int16_t x_val, int16_t y_val)
 {
-  // Clear previous circle
-  tft.fillCircle(CENTER_X, CENTER_Y, CIRCLE_RADIUS, TFT_BLACK);
+  sprite.drawCircle(CENTER_X, CENTER_Y, CIRCLE_RADIUS, TFT_WHITE);
+  sprite.drawLine(CENTER_X - CIRCLE_RADIUS, CENTER_Y, CENTER_X + CIRCLE_RADIUS, CENTER_Y, TFT_WHITE);
+  sprite.drawLine(CENTER_X, CENTER_Y - CIRCLE_RADIUS, CENTER_X, CENTER_Y + CIRCLE_RADIUS, TFT_WHITE);
 
-  // Draw the joystick circle
-  tft.drawCircle(CENTER_X, CENTER_Y, CIRCLE_RADIUS, TFT_WHITE);
+  const int16_t INNER_CIRCLE_RADIUS = 8;
+  sprite.drawCircle(CENTER_X, CENTER_Y, INNER_CIRCLE_RADIUS, TFT_GREEN);
 
-  // Draw the circle lines
-  tft.drawLine(CENTER_X - CIRCLE_RADIUS, CENTER_Y, CENTER_X + CIRCLE_RADIUS, CENTER_Y, TFT_WHITE); // Horizontal line
-  tft.drawLine(CENTER_X, CENTER_Y - CIRCLE_RADIUS, CENTER_X, CENTER_Y + CIRCLE_RADIUS, TFT_WHITE); // Vertical line
-
-  // Draw the center dot
-  const int16_t INNER_CIRCLE_RADIUS = 8;                              // Radius of the inner circle
-  tft.drawCircle(CENTER_X, CENTER_Y, INNER_CIRCLE_RADIUS, TFT_GREEN); // Draw the inner circle
-
-  // Calculate the x and y position of the red circle
   int16_t x_pos = map(constrain(x_val, -32767, 32767), -32767, 32767, CENTER_X - CIRCLE_RADIUS, CENTER_X + CIRCLE_RADIUS);
   int16_t y_pos = map(constrain(y_val, -32767, 32767), -32767, 32767, CENTER_Y - CIRCLE_RADIUS, CENTER_Y + CIRCLE_RADIUS);
 
@@ -328,8 +313,7 @@ void drawJoystickRepresentation(int16_t x_val, int16_t y_val)
     y_pos = CENTER_Y + CIRCLE_RADIUS * sin(angle);
   }
 
-  // Draw the red circle
-  tft.fillCircle(x_pos, y_pos, 7, TFT_RED);
+  sprite.fillCircle(x_pos, y_pos, 7, TFT_RED);
 }
 
 void updateButtonStates()
@@ -338,12 +322,10 @@ void updateButtonStates()
   {
     if (digitalRead(button_pins[i]) == LOW)
     {
-      // Press button
       bleGamepad.press(button_mapping[i]);
     }
     else
     {
-      // Release button
       bleGamepad.release(button_mapping[i]);
     }
   }
